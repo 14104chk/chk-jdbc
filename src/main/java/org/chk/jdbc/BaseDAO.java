@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 import org.apache.commons.lang3.function.FailableConsumer;
+import org.apache.commons.lang3.function.FailableFunction;
 import org.chk.jdbc.rsm.MappingConfig;
 import org.chk.jdbc.rsm.MappingContext;
 import org.chk.jdbc.rsm.Property;
@@ -139,17 +140,23 @@ public abstract class BaseDAO {
         });
     }
 
-    protected void doInTransaction(FailableConsumer<TransactionStatus, Exception> consumer) {
-        transactionTemplate.execute(status -> {
+    protected <V> V doInTransactionTask(FailableFunction<TransactionStatus, V, Exception> function) {
+        return transactionTemplate.execute(status -> {
             try {
-                consumer.accept(status);
-                return null;
+                return function.apply(status);
             } catch (RuntimeException ex) {
                 throw ex;
             } catch (Exception ex) {
                 LoggerFactory.getLogger(getClass()).error(null, ex);
                 throw new RuntimeException(null, ex);
             }
+        });
+    }
+
+    protected void doInTransactionAction(FailableConsumer<TransactionStatus, Exception> consumer) {
+        doInTransactionTask((status) -> {
+            consumer.accept(status);
+            return null;
         });
     }
 }
